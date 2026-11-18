@@ -43,6 +43,10 @@ _setup/wheels/
 _setup/*.exe
 *.log
 
+# --- 下载临时文件 ---
+*.part
+.requirements.install.txt
+
 # --- 系统 / 编辑器杂项 ---
 .DS_Store
 Thumbs.db

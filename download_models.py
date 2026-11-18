@@ -10,9 +10,14 @@
 
 用法：
   python download_models.py                   # 国内镜像下载全部缺失模型（默认）
-  python download_models.py --mirror official # 改用官方 HuggingFace 源
+  python download_models.py --mirror official # 改用官方源（海外 / 国内直连 HF 可行时）
   python download_models.py --check-only      # 只校验不下载；有缺失时退出码为 1
   python download_models.py --only yingmusic_svc_full bs_roformer  # 只处理指定模型
+
+下载源（--mirror）：
+  cn        主权重走 ModelScope，运行时模型走 hf-mirror.com（国内推荐）
+  official  主权重走 huggingface.co，运行时模型走 huggingface.co（海外推荐）
+            该模式会清除外部残留的 HF_ENDPOINT，确保真正直连官方站点。
 
 模型清单见 configs/model_paths.yaml。脚本可重复运行，已就位且校验通过的模型自动跳过。
 """
@@ -35,7 +40,7 @@ CHUNK = 1 << 20  # 1 MiB
 
 
 def human(n):
-    return f"{n / 1073741824:.2f} GB" if n >= 1073741824 else f"{n / 1048576:.1f} MB"
+    return f"{n / 1073741824:.2f} GiB" if n >= 1073741824 else f"{n / 1048576:.1f} MiB"
 
 
 def sha256_of(path):
@@ -98,6 +103,7 @@ def download_direct(m, mirror, timeout=60):
         print(f"  可手动下载后放入 {m['path']}")
         if m.get("manual"):
             print(f"  页面：{m['manual']}")
+        print(f"  可换源重试：--mirror {'official' if mirror == 'cn' else 'cn'}")
         return False
 
     if part.stat().st_size != m["bytes"]:
@@ -116,7 +122,12 @@ def download_direct(m, mirror, timeout=60):
 def hf_setup_env(mirror):
     # 须在 import huggingface_hub 之前设置 HF_ENDPOINT 才会生效。
     if mirror == "cn":
+        # setdefault：尊重用户自己已配置的镜像（如公司内网镜像）
         os.environ.setdefault("HF_ENDPOINT", CN_ENDPOINT)
+    else:
+        # official 模式必须真正回到 huggingface.co：清除外部残留的 HF_ENDPOINT，
+        # 否则若 shell 里曾 export HF_ENDPOINT=hf-mirror.com，--mirror official 会失效。
+        os.environ.pop("HF_ENDPOINT", None)
     os.environ["HF_HOME"] = str(CKPT)
     os.environ["HF_HUB_CACHE"] = str(HF_CACHE)
     os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
@@ -140,7 +151,7 @@ def check_hf(m):
     return True, f"已就位（{human(size)}）"
 
 
-def download_hf(m):
+def download_hf(m, mirror="cn"):
     from huggingface_hub import hf_hub_download, snapshot_download
 
     cache_dir = str(CACHE_MAP[m["cache"]])
@@ -156,6 +167,7 @@ def download_hf(m):
     except Exception as e:  # noqa: BLE001
         print(f"  失败：{type(e).__name__}: {e}")
         print("  可稍后重试（HF 缓存支持断点续传），或检查网络 / 镜像设置")
+        print(f"  可换源重试：--mirror {'official' if mirror == 'cn' else 'cn'}")
         return False
 
 
@@ -190,7 +202,7 @@ def main():
             results[m["id"]] = ok
             continue
         results[m["id"]] = (download_direct(m, args.mirror)
-                            if m["kind"] == "direct" else download_hf(m))
+                            if m["kind"] == "direct" else download_hf(m, args.mirror))
 
     print("\n=== summary ===")
     for m in models:
@@ -198,6 +210,8 @@ def main():
     bad = [m["id"] for m in models if not results[m["id"]]]
     if bad:
         print(f"\n{len(bad)} 个模型未就绪：{', '.join(bad)}")
+        other = "official" if args.mirror == "cn" else "cn"
+        print(f"提示：可换源重试（当前 {args.mirror}）-> python download_models.py --mirror {other}")
         sys.exit(1)
     print("校验通过：全部模型已就位。" if args.check_only else "全部模型已就绪。")
 

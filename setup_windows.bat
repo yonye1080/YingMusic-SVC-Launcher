@@ -4,8 +4,20 @@ chcp 65001 >nul
 cd /d "%~dp0"
 title YingMusic-SVC Setup (Windows)
 
+REM ---- Download mirror: cn (default, ModelScope + hf-mirror) or official (huggingface.co) ----
+REM      Usage:  setup_windows.bat            -> cn
+REM              setup_windows.bat official   -> official (for users outside China)
+set "MIRROR=%~1"
+if "%MIRROR%"=="" set "MIRROR=cn"
+if /i "%MIRROR%"=="cn" goto :mirror_ok
+if /i "%MIRROR%"=="official" goto :mirror_ok
+echo   Unknown mirror "%MIRROR%", fallback to cn. Valid: cn / official
+set "MIRROR=cn"
+:mirror_ok
+
 echo ============================================================
-echo   YingMusic-SVC one-click setup (Windows / China mirrors)
+echo   YingMusic-SVC one-click setup (Windows)
+echo   Download mirror: !MIRROR!
 echo ============================================================
 echo.
 
@@ -53,11 +65,14 @@ echo [5/6] Deploying ffmpeg ...
 if not exist "bin" mkdir bin
 "!VENVPY!" -c "import imageio_ffmpeg,shutil,os; os.makedirs('bin',exist_ok=True); shutil.copy(imageio_ffmpeg.get_ffmpeg_exe(),'bin/ffmpeg.exe'); print('  ffmpeg -> bin/ffmpeg.exe')"
 
-REM ---- 6. Download models (main weights via ModelScope, runtime via hf-mirror) ----
-echo [6/6] Downloading models (main: ModelScope, runtime: hf-mirror)...
-"!VENVPY!" download_models.py --mirror cn
+REM ---- 6. Download models (mirror=cn: ModelScope + hf-mirror; official: huggingface.co) ----
+echo [6/6] Downloading models (mirror=!MIRROR!)...
+"!VENVPY!" download_models.py --mirror !MIRROR!
 if errorlevel 1 (
   echo   Some models are not ready. Re-run this script to resume.
+  echo   If a source is unreachable, try the other mirror:
+  echo     setup_windows.bat official   (outside China)
+  echo     setup_windows.bat cn         (inside China)
   pause
   exit /b 1
 )

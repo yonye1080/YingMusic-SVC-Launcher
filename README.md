@@ -106,6 +106,34 @@ python my_inference.py --source src.wav --target timbre.wav \
 
 首次安装由 `setup_*.bat/.sh` 自动调用 `download_models.py` 下载全部 6 类模型，**运行过程无需联网**。
 
+### 下载源：国内 / 海外都可切换
+
+全链路（模型 + Python 依赖）支持两套源，按所在地区选择：
+
+| 环节 | `cn`（国内） | `official`（海外） |
+|---|---|---|
+| 2 个主权重 | ModelScope | huggingface.co |
+| 4 个运行时模型 | hf-mirror.com | huggingface.co |
+| Python 依赖 | 清华 PyPI + 阿里云 `cu124` | PyPI.org + `download.pytorch.org/whl/cu124` |
+
+一键脚本的默认值按平台设定，也可显式指定：
+
+```bat
+setup_windows.bat              :: 国内源（默认）
+setup_windows.bat official     :: 海外源
+```
+
+```bash
+./setup.sh          # 海外源（默认）
+./setup.sh cn       # 国内源
+```
+
+> 注意：`requirements.txt` 里写死了国内索引，而**文件内的 `--index-url` 会覆盖命令行的 `-i`**。
+> 因此 `setup.sh` 在 official 模式下会自动剔除这两行并改用官方索引；
+> 若你手动装依赖，请自行注释 `requirements.txt` 第 7–8 行，再加 `-i https://pypi.org/simple`。
+
+### 模型清单
+
 | 模型 | 本地路径 | 大小 | 许可 |
 |---|---|---|---|
 | YingMusic-SVC-full.pt | `checkpoints/` | 697.8 MiB | CC BY-NC 4.0（非商业） |
@@ -118,13 +146,14 @@ python my_inference.py --source src.wav --target timbre.wav \
 手动管理模型：
 
 ```bash
-python download_models.py                  # 国内镜像下载全部缺失模型（默认）
-python download_models.py --mirror official # 改用官方 HuggingFace 源
+python download_models.py                   # 国内镜像下载全部缺失模型（默认）
+python download_models.py --mirror official # 官方源（海外 / 国内直连 HF 可行时）
 python download_models.py --check-only      # 只校验不下载（有缺失时退出码为 1）
 python download_models.py --only rmvpe      # 只处理指定模型
 ```
 
 已就位且校验通过的模型会自动跳过；主权重支持断点续传与 SHA256 强校验。
+某一路源不通时，脚本会在失败信息里直接提示换源命令。
 
 ---
 

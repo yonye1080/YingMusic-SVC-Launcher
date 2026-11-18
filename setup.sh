@@ -6,6 +6,16 @@ cd "$(dirname "$0")"
 
 echo "== YingMusic-SVC setup (Linux/macOS) =="
 
+# Download mirror: cn (ModelScope + hf-mirror + Tsinghua PyPI) or official (huggingface.co + PyPI.org).
+# Usage:  ./setup.sh            -> official (default, suitable outside China)
+#         ./setup.sh cn         -> China mirrors
+MIRROR="${1:-official}"
+case "$MIRROR" in
+  cn|official) ;;
+  *) echo "Unknown mirror '$MIRROR'. Valid: cn / official"; exit 1 ;;
+esac
+echo "Download mirror: $MIRROR"
+
 # 1. Python 3.10
 PY="$(command -v python3.10 || true)"
 if [ -z "$PY" ]; then
@@ -20,18 +30,27 @@ echo "Using Python: $PY"
 [ -x ".venv/bin/python" ] || "$PY" -m venv .venv
 VENVPY=".venv/bin/python"
 
-# 3. Dependencies (requirements.txt pins torch 2.4.0+cu124; adjust index for your region)
+# 3. Dependencies. requirements.txt hard-codes Tsinghua PyPI + Aliyun cu124 wheels,
+#    and those in-file options OVERRIDE any -i passed on the command line.
+#    For the official mirror we strip them out and use PyPI.org + pytorch.org instead.
 "$VENVPY" -m pip install --upgrade pip
-"$VENVPY" -m pip install -r requirements.txt
+if [ "$MIRROR" = "official" ]; then
+  TMPREQ=".requirements.install.txt"
+  grep -vE '^[[:space:]]*--(index-url|find-links)' requirements.txt > "$TMPREQ" || true
+  "$VENVPY" -m pip install -r "$TMPREQ" \
+    --index-url https://pypi.org/simple \
+    --extra-index-url https://download.pytorch.org/whl/cu124
+  rm -f "$TMPREQ"
+else
+  "$VENVPY" -m pip install -r requirements.txt
+fi
 
 # 4. ffmpeg / sox (Debian/Ubuntu). Other distros: install via your package manager.
 if command -v apt >/dev/null 2>&1; then
   sudo apt update && sudo apt install -y ffmpeg sox libsox-fmt-all || true
 fi
 
-# 5. Models. Use --mirror cn for China mirrors (ModelScope + hf-mirror),
-#    or --mirror official for HuggingFace. Default here is official for non-CN users.
-MIRROR="${1:-official}"
+# 5. Models (main weights + runtime models), following the same mirror choice.
 "$VENVPY" download_models.py --mirror "$MIRROR"
 
 echo ""
