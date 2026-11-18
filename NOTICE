@@ -1,0 +1,69 @@
+# NOTICE — 第三方声明与许可证区分
+
+本仓库（YingMusic-SVC 封装/分发仓库）**不分发任何模型权重**。所有模型权重均由
+`download_models.py` 在用户首次运行时，从下列公开来源下载到本地对应路径。
+各权重的许可证**独立于**本仓库代码的许可证，且彼此不同，请分别遵守。
+
+许可信息核实日期：2026-11-18，来源为各模型的 HuggingFace 模型卡元数据（license 字段）
+及模型页标注，均为一手来源。
+
+------------------------------------------------------------------------
+
+## 一、本仓库代码
+
+- 许可证：**MIT License**
+- 版权：Copyright (c) 2025 Gongyu CHEN（沿用上游 `LICENSE.txt`，见 `LICENSE`）
+- 说明：本仓库在上游 GiantAILab/YingMusic-SVC 基础上做了 Windows 适配、中文界面、
+  音色库、混音修复等增强，这些修改同样以 MIT 发布。
+
+## 二、主权重（**仅限非商业**，CC BY-NC 4.0）
+
+以下两个权重同属一个仓库，均为 **CC BY-NC 4.0，仅限非商业用途**：
+
+| 文件 | 本地路径 | 许可 |
+|---|---|---|
+| `YingMusic-SVC-full.pt` | `checkpoints/` | CC BY-NC 4.0 |
+| `bs_roformer.ckpt` | `accom_separation/ckpt/bs_roformer/` | CC BY-NC 4.0 |
+
+- 来源（HuggingFace）：https://huggingface.co/GiantAILab/YingMusic-SVC
+- 来源（ModelScope）：https://modelscope.cn/models/giantailab/YingMusic-SVC
+- 依据：HF 模型卡 front matter `license: cc-by-nc-4.0`，ModelScope 模型页标注一致。
+- 许可全文：https://creativecommons.org/licenses/by-nc/4.0/
+
+## 三、第三方运行时模型（各自许可，均为可商用的宽松许可）
+
+| 模型 | 文件 | 来源仓库 | 许可 |
+|---|---|---|---|
+| RMVPE（音高提取） | `rmvpe.pt` | `lj1995/VoiceConversionWebUI` | **MIT**（托管仓库标注） |
+| CAMPPlus（说话人嵌入） | `campplus_cn_common.bin` | `funasr/campplus` | **Apache-2.0** |
+| BigVGAN v2（声码器） | `bigvgan_generator.pt` | `nvidia/bigvgan_v2_44khz_128band_512x` | **MIT**（含 LICENSE 文件） |
+| Whisper small（语义提取） | `model.safetensors` 等 | `openai/whisper-small` | **Apache-2.0**（HF 模型卡标注） |
+
+来源链接：
+- RMVPE：https://huggingface.co/lj1995/VoiceConversionWebUI
+- CAMPPlus：https://huggingface.co/funasr/campplus
+- BigVGAN v2：https://huggingface.co/nvidia/bigvgan_v2_44khz_128band_512x
+- Whisper small：https://huggingface.co/openai/whisper-small
+
+附注：
+- **Whisper**：HF 模型卡标注 Apache-2.0；而 OpenAI Whisper 的上游 GitHub 仓库
+  （openai/whisper）代码为 MIT。二者不一致时，以本下载源的 HF 模型卡标注（Apache-2.0）为准。
+- **RMVPE**：`lj1995/VoiceConversionWebUI` 为 RVC 生态的模型托管集合仓库，repo 级标注 MIT。
+  RMVPE 模型本身的再分发请同时参考其上游说明。
+
+## 四、其他运行时组件
+
+- **FFmpeg**：本仓库不分发 FFmpeg 二进制，由依赖 `imageio-ffmpeg` 在安装时提供，
+  或经安装脚本部署。FFmpeg 依据其构建配置采用 LGPL 或 GPL 许可，请见其官方说明。
+
+------------------------------------------------------------------------
+
+## 五、重要提示：整体用途受最严格项约束
+
+第三方运行时模型（MIT / Apache-2.0）本身允许商用，但**不能解除主权重的非商业限制**。
+由于运行本仓库必须用到 CC BY-NC 4.0 的主权重，因此：
+
+> **基于本仓库 + 上述权重运行所得的全部输出，仅限非商业用途。**
+
+若需商用，须另行取得主权重权利方（GiantAILab）的授权。
+本 NOTICE 仅为信息整理，不构成法律意见；各组件的最终解释权归其各自权利人。

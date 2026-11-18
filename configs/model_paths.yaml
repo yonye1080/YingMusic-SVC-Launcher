@@ -1,0 +1,98 @@
+# =====================================================================
+# YingMusic-SVC 模型清单（由 download_models.py 读取）
+# ---------------------------------------------------------------------
+# 路径与代码实际读取路径严格一致，请勿随意改动。
+#
+# 校验策略分两类：
+#   direct      直链单文件（2 个主权重）。下载后用 sha256 + bytes 强校验。
+#   hf_file     HF 单文件缓存（rmvpe / campplus），hf_hub_download。
+#   hf_snapshot HF 快照缓存（bigvgan / whisper），snapshot_download + 白名单。
+#
+# HF cache 模型的本地路径含 snapshot commit hash（snapshots/<hash>/...），
+# 该 hash 会随后续上游更新而变化，因此【不写死完整路径】，统一用
+# huggingface_hub 定位缓存文件后校验「存在 + check_file 字节数」。
+#
+# cache 取值（两处缓存根不同，必须保留，否则运行时找不到模型）：
+#   ckpt      -> checkpoints/            （HF_HOME，rmvpe / campplus）
+#   hf_cache  -> checkpoints/hf_cache/   （HF_HUB_CACHE，bigvgan / whisper）
+# =====================================================================
+
+models:
+  # ---------- 主权重：直链下载，SHA256 强校验（仅限非商业） ----------
+  - id: yingmusic_svc_full
+    kind: direct
+    desc: YingMusic-SVC 主权重
+    path: checkpoints/YingMusic-SVC-full.pt
+    bytes: 731683240
+    sha256: 8e4b83e18669b046be79e7c6a979ad33f162d2a75c40213d998ad5687d7c6054
+    license: CC BY-NC 4.0（仅限非商业）
+    url:
+      cn: https://modelscope.cn/models/giantailab/YingMusic-SVC/resolve/master/YingMusic-SVC-full.pt
+      official: https://huggingface.co/GiantAILab/YingMusic-SVC/resolve/main/YingMusic-SVC-full.pt
+    manual: https://modelscope.cn/models/giantailab/YingMusic-SVC/files
+
+  - id: bs_roformer
+    kind: direct
+    desc: 伴奏分离 BS-RoFormer 权重
+    path: accom_separation/ckpt/bs_roformer/bs_roformer.ckpt
+    bytes: 1295074954
+    sha256: 364964794b0c82c843c53099d80b6ecfee852cf2bf42f098515276c779623bb6
+    license: CC BY-NC 4.0（仅限非商业）
+    url:
+      cn: https://modelscope.cn/models/giantailab/YingMusic-SVC/resolve/master/bs_roformer.ckpt
+      official: https://huggingface.co/GiantAILab/YingMusic-SVC/resolve/main/bs_roformer.ckpt
+    manual: https://modelscope.cn/models/giantailab/YingMusic-SVC/files
+    note: 同目录 config_bd_roformer.yaml 随源码仓库提供，非下载项，须与该权重同目录。
+
+  # ---------- 运行时模型：HF 缓存，存在性 + 关键文件大小校验 ----------
+  - id: rmvpe
+    kind: hf_file
+    desc: 音高提取 RMVPE
+    repo_id: lj1995/VoiceConversionWebUI
+    filename: rmvpe.pt
+    cache: ckpt
+    check_file: rmvpe.pt
+    bytes: 181184272
+    license: 见 NOTICE（第三方模型，逐项核实后填写）
+
+  - id: campplus
+    kind: hf_file
+    desc: 说话人嵌入 CAMPPlus
+    repo_id: funasr/campplus
+    filename: campplus_cn_common.bin
+    cache: ckpt
+    check_file: campplus_cn_common.bin
+    bytes: 28036335
+    license: 见 NOTICE（第三方模型，逐项核实后填写）
+
+  - id: bigvgan
+    kind: hf_snapshot
+    desc: 声码器 BigVGAN v2
+    repo_id: nvidia/bigvgan_v2_44khz_128band_512x
+    cache: hf_cache
+    allow_patterns:
+      - config.json
+      - bigvgan_generator.pt
+    check_file: bigvgan_generator.pt
+    bytes: 489041291
+    license: 见 NOTICE（第三方模型，逐项核实后填写）
+
+  - id: whisper_small
+    kind: hf_snapshot
+    desc: 语义提取 Whisper small（白名单避免拉取 TF/Flax 冗余权重）
+    repo_id: openai/whisper-small
+    cache: hf_cache
+    allow_patterns:
+      - config.json
+      - preprocessor_config.json
+      - generation_config.json
+      - tokenizer.json
+      - tokenizer_config.json
+      - vocab.json
+      - merges.txt
+      - special_tokens_map.json
+      - normalizer.json
+      - model.safetensors
+    check_file: model.safetensors
+    bytes: 966995080
+    license: 见 NOTICE（第三方模型，逐项核实后填写）

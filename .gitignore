@@ -1,0 +1,52 @@
+# ===== YingMusic-SVC 分发仓库 .gitignore =====
+# 原则：只入库 代码 + 配置 + 文档 + 示例音色；权重、环境、运行产物、备份一律排除。
+
+# --- Python 虚拟环境 ---
+.venv/
+venv/
+
+# --- Python 字节码缓存（上游误提交，已一并清理跟踪） ---
+__pycache__/
+*.pyc
+*.pyo
+
+# --- 模型权重与 HuggingFace 缓存 ---
+# checkpoints/ 含 HF cache(blobs/snapshots/.locks)，格式繁杂，整目录排除
+checkpoints/
+# 主权重按扩展名排除。
+# 注意：accom_separation/ckpt/ 下的 config_bd_roformer.yaml 是源码配置、必须入库，
+#       因此这里【不】整目录排除 accom_separation/ckpt/，只排除权重文件本身。
+*.pt
+*.ckpt
+*.safetensors
+*.onnx
+
+# --- ffmpeg / 二进制运行库（由 imageio-ffmpeg 或安装脚本提供） ---
+bin/
+
+# --- 运行产物与用户数据 ---
+outputs/
+timbre_library/
+ui_lang.json
+
+# --- 用户音频输入与分轨输出（保留目录占位说明文件） ---
+accom_separation/samples/raw/*
+!accom_separation/samples/raw/put raw wav here
+accom_separation/samples/raw-infer/
+
+# --- 本地改造前的备份文件（保留在磁盘，不入库） ---
+*.original.*
+*.before_*
+
+# --- 安装器 / wheel / 日志（_setup 下的测试 .py 代码保留入库） ---
+_setup/wheels/
+_setup/*.exe
+*.log
+
+# --- 系统 / 编辑器杂项 ---
+.DS_Store
+Thumbs.db
+
+# --- 本机工作数据（不随仓库分发）---
+.workbuddy/
+目标.md
