@@ -4,8 +4,9 @@
 `download_models.py` 在用户首次运行时，从下列公开来源下载到本地对应路径。
 各权重的许可证**独立于**本仓库代码的许可证，且彼此不同，请分别遵守。
 
-许可信息核实日期：2026-11-18，来源为各模型的 HuggingFace 模型卡元数据（license 字段）
-及模型页标注，均为一手来源。
+许可信息核实日期：2026-11-18。核实方式：HuggingFace 模型 API 的 `cardData.license` /
+`tags` 字段、ModelScope 模型 API 的 `License` 字段、以及各仓库内随附的 LICENSE 文件原文，
+均为一手来源（非二手转述）。
 
 ------------------------------------------------------------------------
 
@@ -27,14 +28,18 @@
 
 - 来源（HuggingFace）：https://huggingface.co/GiantAILab/YingMusic-SVC
 - 来源（ModelScope）：https://modelscope.cn/models/giantailab/YingMusic-SVC
-- 依据：HF 模型卡 front matter `license: cc-by-nc-4.0`，ModelScope 模型页标注一致。
+- 依据：HF 模型卡 `cardData.license = cc-by-nc-4.0`；ModelScope 模型 API
+  `License = cc-by-nc-4.0`，两处**一致**。
 - 许可全文：https://creativecommons.org/licenses/by-nc/4.0/
+- 说明：`bs_roformer.ckpt` 作为该仓库内的文件，按**仓库级标注**一并适用 CC BY-NC 4.0
+  （采取"就严不就宽"的保守处理）。伴奏分离若需可商用的替代权重，可自行替换为
+  来源标注更宽松的同架构 BS-RoFormer 权重，但**本仓库默认配置下不适用**。
 
-## 三、第三方运行时模型（各自许可，均为可商用的宽松许可）
+## 三、第三方运行时模型（各自许可；宽松许可，但 RMVPE 带附加限制）
 
 | 模型 | 文件 | 来源仓库 | 许可 |
 |---|---|---|---|
-| RMVPE（音高提取） | `rmvpe.pt` | `lj1995/VoiceConversionWebUI` | **MIT**（托管仓库标注） |
+| RMVPE（音高提取） | `rmvpe.pt` | `lj1995/VoiceConversionWebUI` | **MIT + 附加"仅供研究使用"条款**（见下） |
 | CAMPPlus（说话人嵌入） | `campplus_cn_common.bin` | `funasr/campplus` | **Apache-2.0** |
 | BigVGAN v2（声码器） | `bigvgan_generator.pt` | `nvidia/bigvgan_v2_44khz_128band_512x` | **MIT**（含 LICENSE 文件） |
 | Whisper small（语义提取） | `model.safetensors` 等 | `openai/whisper-small` | **Apache-2.0**（HF 模型卡标注） |
@@ -46,22 +51,38 @@
 - Whisper small：https://huggingface.co/openai/whisper-small
 
 附注：
-- **Whisper**：HF 模型卡标注 Apache-2.0；而 OpenAI Whisper 的上游 GitHub 仓库
-  （openai/whisper）代码为 MIT。二者不一致时，以本下载源的 HF 模型卡标注（Apache-2.0）为准。
-- **RMVPE**：`lj1995/VoiceConversionWebUI` 为 RVC 生态的模型托管集合仓库，repo 级标注 MIT。
-  RMVPE 模型本身的再分发请同时参考其上游说明。
+- **RMVPE（重要）**：HF 仓库元数据标注 `license: mit`，但该仓库根目录另有一份
+  `使用需遵守的协议-LICENSE.txt`，在 MIT 正文之外插入了一行中文限定：
+  > 本软件仅供研究使用，使用软件者、传播软件导出的声音者自负全责。
+
+  该文件开头写明这些条款适用于"软件包内所有代码和文件"，故 `rmvpe.pt` 一并受此约束。
+  即：**MIT 正文本身允许商用，但附加条款声明"仅供研究使用"，两者存在张力**。
+  因此 RMVPE **不宜简单表述为"可商用"**；如需商业使用，请自行评估或联系权利人。
+- **Whisper**：本次下载源 `openai/whisper-small`（HF）元数据标注 `license: apache-2.0`；
+  而 OpenAI 官方 GitHub 仓库（openai/whisper）README 声明
+  "Whisper's code **and model weights** are released under the MIT License"，即代码与权重均称 MIT。
+  两处标注不一致，本仓库采用**下载源（HF 模型卡）的 Apache-2.0** 这一书面标注。
+  Apache-2.0 与 MIT 均为允许商用的宽松许可，对使用者的实际影响有限
+  （Apache-2.0 额外要求保留声明与标注修改）。
 
 ## 四、其他运行时组件
 
-- **FFmpeg**：本仓库不分发 FFmpeg 二进制，由依赖 `imageio-ffmpeg` 在安装时提供，
-  或经安装脚本部署。FFmpeg 依据其构建配置采用 LGPL 或 GPL 许可，请见其官方说明。
+- **FFmpeg**：本仓库**不分发** FFmpeg 二进制。
+  - Windows：`setup_windows.bat` 用 `imageio-ffmpeg` 提供的可执行文件复制到 `bin/ffmpeg.exe`。
+  - Linux：`setup.sh` 通过系统包管理器安装。
+  - `imageio-ffmpeg`（Python 包本身）：**BSD-2-Clause**。
+  - 随包附带的 ffmpeg 二进制：适用 FFmpeg 自身许可（**LGPL-2.1+ 或 GPL-2.0+，取决于该
+    构建启用的组件**），以该构建随附的 COPYING/LICENSE 为准；系统安装的 ffmpeg 同理。
+- **SoX**：`setup.sh` 在 Debian/Ubuntu 下安装 `sox`（**GPL-2.0**，部分组件 LGPL）。
+  Windows 下 torchaudio 不带 SoX 扩展，`Remix/auger.py` 会自动回退到纯 PyTorch 近似实现，
+  因此 Windows 用户**不依赖** SoX；该回退实现同样以本仓库 MIT 发布。
 
 ------------------------------------------------------------------------
 
 ## 五、重要提示：整体用途受最严格项约束
 
-第三方运行时模型（MIT / Apache-2.0）本身允许商用，但**不能解除主权重的非商业限制**。
-由于运行本仓库必须用到 CC BY-NC 4.0 的主权重，因此：
+第三方运行时模型多为宽松许可（RMVPE 除外，其上游附带"仅供研究使用"条款），
+但**均不能解除主权重的非商业限制**。由于运行本仓库必须用到 CC BY-NC 4.0 的主权重，因此：
 
 > **基于本仓库 + 上述权重运行所得的全部输出，仅限非商业用途。**
 

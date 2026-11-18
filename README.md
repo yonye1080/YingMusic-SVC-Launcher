@@ -108,12 +108,12 @@ python my_inference.py --source src.wav --target timbre.wav \
 
 | 模型 | 本地路径 | 大小 | 许可 |
 |---|---|---|---|
-| YingMusic-SVC-full.pt | `checkpoints/` | 697.8 MB | CC BY-NC 4.0 |
-| bs_roformer.ckpt | `accom_separation/ckpt/bs_roformer/` | 1.21 GB | CC BY-NC 4.0 |
-| RMVPE | `checkpoints/`（HF cache） | 172.8 MB | MIT |
-| CAMPPlus | `checkpoints/`（HF cache） | 26.7 MB | Apache-2.0 |
-| BigVGAN v2 | `checkpoints/hf_cache/` | 466.4 MB | MIT |
-| Whisper small | `checkpoints/hf_cache/` | 922.2 MB | Apache-2.0 |
+| YingMusic-SVC-full.pt | `checkpoints/` | 697.8 MiB | CC BY-NC 4.0（非商业） |
+| bs_roformer.ckpt | `accom_separation/ckpt/bs_roformer/` | 1.21 GiB | CC BY-NC 4.0（非商业） |
+| RMVPE | `checkpoints/`（HF cache） | 172.8 MiB | MIT + 「仅供研究使用」条款 |
+| CAMPPlus | `checkpoints/`（HF cache） | 26.7 MiB | Apache-2.0 |
+| BigVGAN v2 | `checkpoints/hf_cache/` | 466.4 MiB | MIT |
+| Whisper small | `checkpoints/hf_cache/` | 922.2 MiB | Apache-2.0 |
 
 手动管理模型：
 
@@ -134,9 +134,11 @@ python download_models.py --only rmvpe      # 只处理指定模型
 
 - **代码：MIT**（见 `LICENSE`，Copyright (c) 2025 Gongyu CHEN）。
 - **主权重（`YingMusic-SVC-full.pt`、`bs_roformer.ckpt`）：CC BY-NC 4.0，仅限非商业。**
-- **第三方运行时模型（RMVPE/CAMPPlus/BigVGAN/Whisper）：MIT / Apache-2.0，可商用**（逐项来源见 `NOTICE`）。
+- **第三方运行时模型**：CAMPPlus / Whisper small 为 **Apache-2.0**，BigVGAN v2 为 **MIT**；
+  RMVPE 为 MIT，但上游随附「本软件仅供研究使用」条款，**不建议视为可商用**。
+  逐项来源与原文见 `NOTICE`。
 
-> ⚠️ **整体用途受最严格项约束**：虽然第三方运行时模型可商用，但运行本仓库必须使用
+> ⚠️ **整体用途受最严格项约束**：即使部分第三方模型属宽松许可，运行本仓库必须使用
 > CC BY-NC 4.0 的主权重，因此**基于本仓库 + 上述权重运行所得的全部输出，仅限非商业用途**。
 > 商用须另行取得主权重权利方（GiantAILab）授权。详见 `NOTICE`。
 

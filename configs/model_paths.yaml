@@ -53,7 +53,7 @@ models:
     cache: ckpt
     check_file: rmvpe.pt
     bytes: 181184272
-    license: 见 NOTICE（第三方模型，逐项核实后填写）
+    license: MIT + 上游附加"本软件仅供研究使用"条款（不宜视为可商用，见 NOTICE）
 
   - id: campplus
     kind: hf_file
@@ -63,7 +63,7 @@ models:
     cache: ckpt
     check_file: campplus_cn_common.bin
     bytes: 28036335
-    license: 见 NOTICE（第三方模型，逐项核实后填写）
+    license: Apache-2.0
 
   - id: bigvgan
     kind: hf_snapshot
@@ -75,7 +75,7 @@ models:
       - bigvgan_generator.pt
     check_file: bigvgan_generator.pt
     bytes: 489041291
-    license: 见 NOTICE（第三方模型，逐项核实后填写）
+    license: MIT
 
   - id: whisper_small
     kind: hf_snapshot
@@ -95,4 +95,4 @@ models:
       - model.safetensors
     check_file: model.safetensors
     bytes: 966995080
-    license: 见 NOTICE（第三方模型，逐项核实后填写）
+    license: Apache-2.0（HF 模型卡标注；OpenAI GitHub 声明代码与权重均为 MIT，此处取下载源标注）
