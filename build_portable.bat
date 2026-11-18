@@ -78,8 +78,13 @@ if errorlevel 8 (
 )
 
 REM ---- 3. Project code ----
+REM Dev-only leftovers are excluded so the bundle looks like a product, not a
+REM working tree: VCS metadata, the *.original / *.before_* backup copies of
+REM gradio_app.py / my_inference.py / run_*.bat, and every *.md but README.md
+REM (that is how the Chinese handover note stays out while README still ships).
 echo [3/6] Copying project code ...
-robocopy "%SRC%" "%DEST%" /E /MT:8 /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /XD "%SRC%\.venv" "%SRC%\.git" "%SRC%\.workbuddy" "%SRC%\outputs" "%SRC%\timbre_library" "%SRC%\checkpoints" "%SRC%\__pycache__" /XF "*.pyc" "*.log"
+robocopy "%SRC%" "%DEST%" /E /MT:8 /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /XD "%SRC%\.venv" "%SRC%\.git" "%SRC%\.workbuddy" "%SRC%\outputs" "%SRC%\timbre_library" "%SRC%\checkpoints" "%SRC%\__pycache__" /XF "*.pyc" "*.log" ".gitignore" ".gitattributes" "*.original.py" "*.original.txt" "*.before_*.py" "*.before_*.bat" "*.md"
+copy /y "%SRC%\README.md" "%DEST%\README.md" >nul
 if errorlevel 8 (
   echo [ERROR] Copy of project code failed.
   goto :fail
