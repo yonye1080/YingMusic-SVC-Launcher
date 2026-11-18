@@ -77,6 +77,7 @@ Filename: "{app}\start.bat"; Description: "{cm:LaunchProgram,{#StringChange(MyAp
 
 [UninstallDelete]
 Type: files; Name: "{app}\ui_lang.json"
+Type: filesandordirs; Name: "{app}\python"
 
 [Code]
 { Ask before removing user-generated data on uninstall. }

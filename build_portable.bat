@@ -118,6 +118,8 @@ echo [6/6] Writing start.bat ...
 >>"%DEST%\start.bat" echo set "HF_HUB_CACHE=%%~dp0checkpoints\hf_cache"
 >>"%DEST%\start.bat" echo set "HF_HUB_DISABLE_TELEMETRY=1"
 >>"%DEST%\start.bat" echo set "PATH=%%~dp0bin;%%~dp0python;%%PATH%%"
+>>"%DEST%\start.bat" echo set "NUMBA_CACHE_DIR=%%LOCALAPPDATA%%\YingMusic-SVC-Launcher\numba_cache"
+>>"%DEST%\start.bat" echo if not exist "%%NUMBA_CACHE_DIR%%" mkdir "%%NUMBA_CACHE_DIR%%" ^>nul 2^>nul
 >>"%DEST%\start.bat" echo echo Starting YingMusic-SVC ... close this window to stop.
 >>"%DEST%\start.bat" echo "%%~dp0python\python.exe" gradio_app.py
 >>"%DEST%\start.bat" echo pause
