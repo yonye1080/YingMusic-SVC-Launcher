@@ -1,0 +1,10 @@
+# 海外下载源（推荐中国大陆以外用户）
+#   pip install -r requirements-official.txt
+#
+# 主索引为 PyPI.org；torch 2.4.0+cu124 这类带本地版本号的 wheel 只在
+# PyTorch 官方索引里，故用 --extra-index-url 追加（该索引是 PEP 503 目录结构，
+# 需要 --extra-index-url，--find-links 不会递归到 torch/ 子目录）。
+--index-url https://pypi.org/simple
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+-r requirements.txt

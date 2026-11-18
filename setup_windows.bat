@@ -48,11 +48,12 @@ if not exist ".venv\Scripts\python.exe" (
 )
 set "VENVPY=%~dp0.venv\Scripts\python.exe"
 
-REM ---- 3. Install dependencies (requirements.txt already points to ----
-REM         Tsinghua PyPI + Aliyun cu124 wheels) ----
-echo [3/6] Installing dependencies (incl. torch 2.4.0+cu124, ~2.5GB, please wait)...
+REM ---- 3. Install dependencies (requirements-!MIRROR!.txt selects the source: ----
+REM         cn => Tsinghua PyPI + Aliyun cu124 wheels
+REM         official => PyPI.org + download.pytorch.org cu124) ----
+echo [3/6] Installing dependencies (mirror=!MIRROR!, torch 2.4.0+cu124, ~2.5GB, please wait)...
 "!VENVPY!" -m pip install --upgrade pip
-"!VENVPY!" -m pip install -r requirements.txt
+"!VENVPY!" -m pip install -r "requirements-!MIRROR!.txt"
 if errorlevel 1 ( echo   Dependency installation failed. & pause & exit /b 1 )
 
 REM ---- 4. Restore OpenMP runtime name expected by torch Windows wheel ----

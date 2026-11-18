@@ -1,0 +1,9 @@
+# 国内下载源（推荐国内用户）
+#   pip install -r requirements-cn.txt
+#
+# 清华 PyPI 提供绝大多数包；torch 2.4.0+cu124 等带本地版本号的 wheel
+# 只存在于 pytorch 镜像（阿里云 pytorch-wheels 是扁平目录，用 --find-links 即可）。
+--index-url https://pypi.tuna.tsinghua.edu.cn/simple
+--find-links https://mirrors.aliyun.com/pytorch-wheels/cu124/
+
+-r requirements.txt

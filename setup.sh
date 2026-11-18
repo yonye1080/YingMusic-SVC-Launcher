@@ -30,20 +30,11 @@ echo "Using Python: $PY"
 [ -x ".venv/bin/python" ] || "$PY" -m venv .venv
 VENVPY=".venv/bin/python"
 
-# 3. Dependencies. requirements.txt hard-codes Tsinghua PyPI + Aliyun cu124 wheels,
-#    and those in-file options OVERRIDE any -i passed on the command line.
-#    For the official mirror we strip them out and use PyPI.org + pytorch.org instead.
+# 3. Dependencies. The download source lives in requirements-<mirror>.txt;
+#    requirements.txt itself is a plain package list (no index), so it can be shared.
+#    cn => Tsinghua PyPI + Aliyun cu124 wheels; official => PyPI.org + pytorch.org cu124.
 "$VENVPY" -m pip install --upgrade pip
-if [ "$MIRROR" = "official" ]; then
-  TMPREQ=".requirements.install.txt"
-  grep -vE '^[[:space:]]*--(index-url|find-links)' requirements.txt > "$TMPREQ" || true
-  "$VENVPY" -m pip install -r "$TMPREQ" \
-    --index-url https://pypi.org/simple \
-    --extra-index-url https://download.pytorch.org/whl/cu124
-  rm -f "$TMPREQ"
-else
-  "$VENVPY" -m pip install -r requirements.txt
-fi
+"$VENVPY" -m pip install -r "requirements-$MIRROR.txt"
 
 # 4. ffmpeg / sox (Debian/Ubuntu). Other distros: install via your package manager.
 if command -v apt >/dev/null 2>&1; then

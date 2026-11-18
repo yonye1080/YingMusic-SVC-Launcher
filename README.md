@@ -114,7 +114,7 @@ python my_inference.py --source src.wav --target timbre.wav \
 |---|---|---|
 | 2 个主权重 | ModelScope | huggingface.co |
 | 4 个运行时模型 | hf-mirror.com | huggingface.co |
-| Python 依赖 | 清华 PyPI + 阿里云 `cu124` | PyPI.org + `download.pytorch.org/whl/cu124` |
+| Python 依赖 | `requirements-cn.txt`（清华 PyPI + 阿里云 `cu124`） | `requirements-official.txt`（PyPI.org + `download.pytorch.org/whl/cu124`） |
 
 一键脚本的默认值按平台设定，也可显式指定：
 
@@ -128,9 +128,17 @@ setup_windows.bat official     :: 海外源
 ./setup.sh cn       # 国内源
 ```
 
-> 注意：`requirements.txt` 里写死了国内索引，而**文件内的 `--index-url` 会覆盖命令行的 `-i`**。
-> 因此 `setup.sh` 在 official 模式下会自动剔除这两行并改用官方索引；
-> 若你手动装依赖，请自行注释 `requirements.txt` 第 7–8 行，再加 `-i https://pypi.org/simple`。
+**手动装依赖时按地区选文件**（包版本只在 `requirements.txt` 里定义一次，这两个文件仅负责选源）：
+
+```bash
+pip install -r requirements-cn.txt         # 国内
+pip install -r requirements-official.txt   # 海外
+```
+
+> 为什么拆文件：pip 中**文件内的 `--index-url` 优先级高于命令行的 `-i`**，
+> 把源写进主清单会导致 `-i` 完全失效、无法按地区切换。
+> `requirements.txt` 因此只保留包列表；若直接 `pip install -r requirements.txt`，
+> 会使用 pip 的默认源（国内可能较慢）。
 
 ### 模型清单
 

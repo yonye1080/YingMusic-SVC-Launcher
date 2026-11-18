@@ -1,11 +1,15 @@
-# YingMusic-SVC - Windows / 国内镜像适配版
+# YingMusic-SVC - 依赖清单（纯包列表，不含下载源）
 # 官方原始清单已备份为 requirements.original.txt
+#
+# 【本文件不含 --index-url / --find-links】
+# 原因：写在清单里的 --index-url 优先级高于命令行 -i，会导致无法按地区切换源。
+# 请改用带源的分文件安装：
+#     国内：pip install -r requirements-cn.txt
+#     海外：pip install -r requirements-official.txt
+# （两个文件均以 -r 引用本清单，包版本只有这一处定义。）
+#
 # 说明：原清单前 3 行指向境外 download.pytorch.org 的 nightly/cu126，
-#       与后面的 torch==2.4.0 冲突，已移除。
-#       torch 三件套走阿里云 pytorch-wheels(cu124) 镜像，其余走清华 PyPI 镜像。
-
---index-url https://pypi.tuna.tsinghua.edu.cn/simple
---find-links https://mirrors.aliyun.com/pytorch-wheels/cu124/
+#       与后面的 torch==2.4.0 冲突，已移除；torch 三件套固定为 cu124。
 
 torch==2.4.0+cu124
 torchvision==0.19.0+cu124
