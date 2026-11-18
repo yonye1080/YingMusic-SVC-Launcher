@@ -77,6 +77,14 @@ if errorlevel 8 (
   goto :fail
 )
 
+REM ---- 2b. Trim build-only files from torch ----
+REM torch\lib\*.lib are static import libraries and torch\include is the C++
+REM header tree. Both are needed only when compiling torch extensions, never
+REM when running inference, and together they are ~790 MiB of the bundle.
+echo [2b/6] Trimming torch build-only files ...
+if exist "%DEST%\python\Lib\site-packages\torch\lib" del /q "%DEST%\python\Lib\site-packages\torch\lib\*.lib" >nul 2>nul
+if exist "%DEST%\python\Lib\site-packages\torch\include" rmdir /s /q "%DEST%\python\Lib\site-packages\torch\include" >nul 2>nul
+
 REM ---- 3. Project code ----
 REM Dev-only leftovers are excluded so the bundle looks like a product, not a
 REM working tree: VCS metadata, the *.original / *.before_* backup copies of
