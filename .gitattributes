@@ -1,0 +1,4 @@
+# 保证脚本行尾跨平台正确：否则 Linux 上 setup.sh 会因 CRLF 报 "bad interpreter"
+*.sh   text eol=lf
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
