@@ -2,3 +2,6 @@
 *.sh   text eol=lf
 *.bat  text eol=crlf
 *.cmd  text eol=crlf
+# Inno Setup 脚本与语言文件按 Windows 惯例保持 CRLF（BOM 由文件自身携带）
+*.iss  text eol=crlf
+*.isl  text eol=crlf

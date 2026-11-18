@@ -165,6 +165,28 @@ python download_models.py --only rmvpe      # 只处理指定模型
 
 ---
 
+## 📦 打包发行（维护者）
+
+普通用户不需要本节；只有需要重新产出绿色版 / 安装包时才用。
+
+```bat
+REM 1) 绿色免安装版（内置 embeddable Python、依赖、权重、ffmpeg）
+build_portable.bat                       :: 默认 D:\YingMusic-SVC-Portable
+build_portable.bat D:\MyPortable         :: 指定目标目录
+
+REM 2) 安装包（Inno Setup 6，需先装好 Inno Setup）
+installer\build_installer.bat            :: 默认 载荷 D:\YingMusic-SVC-Portable、输出 D:\YingMusic-SVC-Installer\out
+installer\build_installer.bat <载荷目录> <输出目录>
+```
+
+- **图标**：`installer/assets/icon-source.png` 是唯一的源图；`installer/make_icon.py` 会抠掉白底、居中裁方，再压成 16–256 px 的 7 个尺寸，产出 `installer/assets/app.ico`。换图标只替换源图后重跑该脚本即可。
+- **中文界面**：`installer/ChineseSimplified.isl` 是社区维护的 Inno Setup 简体中文翻译（基于 6.5.0+，UTF-8 带 BOM），因为 Inno Setup 官方只随附少数语种。安装向导会先弹语言选择，简体中文为默认。
+- **装到哪**：`PrivilegesRequired=lowest` + `DefaultDirName={autopf}` ⇒ 影子目录 `%LocalAppData%\Programs\YingMusic-SVC-Launcher`，全程无需管理员权限。这样做是因为程序要往自己目录里写 `outputs\`、`timbre_library\`、`ui_lang.json`，装在 `Program Files` 下普通用户会写失败。
+- **产物是分卷的**：载荷约 9.4 GB，超过单文件 2 GB 上限，因此开启 `DiskSpanning`，产出 `Setup.exe` + `Setup-1/2/3.bin`。**分发时必须整组一起拷**，缺一片就装不完。
+- 安装包未做代码签名，用户首次运行会看到 SmartScreen「未知发布者」提示，选「更多信息 → 仍要运行」即可。
+
+---
+
 ## 📝 许可证（务必阅读）
 
 本仓库涉及**三类不同许可**，请分别遵守：
