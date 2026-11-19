@@ -1,3 +1,5 @@
+**English** | [简体中文](../README.md)
+
 ## Setup
 
 Install a compatible PyTorch version, then install the Python dependencies:

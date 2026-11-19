@@ -1,5 +1,7 @@
 # YingMusic-SVC · 增强分发版
 
+**简体中文** | [English](README.en.md)
+
 > 基于 [GiantAILab/YingMusic-SVC](https://github.com/GiantAILab/YingMusic-SVC) 的增强 fork：
 > **Windows 一键安装 + 完整离线运行 + 中英双语界面 + 参考音色库 + 混音修复 + 国内镜像全链路**。
 > 源码仓库不直接存放模型权重；Windows Release 安装包已内置全部模型，源码安装则由脚本自动下载。
