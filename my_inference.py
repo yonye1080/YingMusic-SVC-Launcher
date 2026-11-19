@@ -2,7 +2,12 @@ import os
 
 import numpy as np
 
-os.environ['HF_HUB_CACHE'] = './checkpoints/hf_cache'
+# Respect an absolute cache path injected by the launcher (start.bat), and
+# fall back to a path next to this file instead of one relative to the CWD.
+os.environ.setdefault(
+    'HF_HUB_CACHE',
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'checkpoints', 'hf_cache'),
+)
 import shutil
 import warnings
 import argparse
@@ -20,6 +25,11 @@ import librosa
 from modules.commons import str2bool
 from mm4 import preprocess_voice_conversion
 from hf_utils import load_custom_model_from_hf
+from runtime_state import (
+    MODEL_CACHE,
+    clear_cached_models_locked,
+    model_runtime,
+)
 
 ########## tools ##########
 def str2bool(v):
@@ -41,7 +51,7 @@ def crossfade(chunk1, chunk2, overlap):
         chunk2[:overlap] = chunk2[:overlap] * fade_in + chunk1[-overlap:] * fade_out
     return chunk2
 
-def load_models_api(args, device=torch.device("cuda")):
+def _load_models_uncached(args, device=torch.device("cuda")):
     dit_checkpoint_path = args.checkpoint
     print(f'load model from {dit_checkpoint_path}')
     dit_config_path = args.config
@@ -159,6 +169,55 @@ def load_models_api(args, device=torch.device("cuda")):
         to_mel,
         mel_fn_args,
     )
+
+
+# Keep one SVC model set alive between conversions. Rebuilding DiT, RMVPE,
+# CAMPPlus, BigVGAN and Whisper for every song costs minutes and accumulates
+# reserved CUDA memory. A single-entry cache also prevents an accidental
+# multi-gigabyte leak when users switch checkpoint/config/device.
+def _model_cache_key(args, device):
+    checkpoint = os.path.realpath(os.path.abspath(args.checkpoint))
+    config = os.path.realpath(os.path.abspath(args.config))
+    checkpoint_stat = os.stat(checkpoint)
+    config_stat = os.stat(config)
+    return (
+        checkpoint,
+        checkpoint_stat.st_size,
+        checkpoint_stat.st_mtime_ns,
+        config,
+        config_stat.st_size,
+        config_stat.st_mtime_ns,
+        str(device),
+    )
+
+
+def load_models_api(args, device=torch.device("cuda")):
+    """Load the SVC models once and reuse them until their files/device change."""
+    key = _model_cache_key(args, device)
+    with model_runtime():
+        if key in MODEL_CACHE:
+            print(f"Reusing cached model from {args.checkpoint}")
+            return MODEL_CACHE[key]
+
+        # Drop the previous bundle before loading the new one, otherwise the
+        # old and new weights coexist on an 8 GB card.
+        clear_cached_models_locked()
+        bundle = _load_models_uncached(args, device=device)
+        MODEL_CACHE[key] = bundle
+        return bundle
+
+
+def run_cached_inference(args, device=torch.device("cuda")):
+    """Serialize model use, reuse loaded weights and release temporary CUDA blocks."""
+    with model_runtime():
+        try:
+            model_bundle = load_models_api(args, device=device)
+            return run_inference(args, model_bundle, device=device)
+        finally:
+            # Live cached weights stay on the GPU; only unused inference blocks
+            # are returned to the allocator before the next separation/SVC run.
+            if torch.cuda.is_available() and getattr(device, "type", None) == "cuda":
+                torch.cuda.empty_cache()
 
 
 @torch.no_grad()
@@ -375,8 +434,7 @@ if __name__ == "__main__":
     args.output = './outputs'
     os.makedirs(args.output, exist_ok=True)
 
-    models = load_models_api(args, device=args.cuda)
-    vc = run_inference(args, models, device=args.cuda)
+    vc = run_cached_inference(args, device=args.cuda)
     if args.accompany:
         vc_t = vc.split('/')
         a,b = '/'.join(vc_t[:-1]), vc_t[-1]

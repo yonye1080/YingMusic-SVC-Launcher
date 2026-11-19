@@ -1,10 +1,21 @@
 import os
+import sys
 import shutil
 import tempfile
 import json
 import hashlib
 from typing import Optional, Tuple
 import gradio as gr
+
+# The embeddable Python used by the portable/installer builds has a ._pth
+# file, which puts the interpreter in isolated mode: the script directory is
+# NOT added to sys.path. Without this bootstrap local imports fail with
+# ModuleNotFoundError even though gradio_app.py sits right next to them.
+_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+if _APP_DIR not in sys.path:
+    sys.path.insert(0, _APP_DIR)
+
+from runtime_state import model_runtime
 
 
 # ---------------- i18n ----------------
@@ -274,7 +285,11 @@ def run_separation(
         "flac_file": False,
         "use_tta": False,
     }
-    proc_folder(args)
+    # Separation needs the whole GPU: evict the cached SVC bundle and hold the
+    # same lock while BS-RoFormer runs, so a parallel convert click cannot load
+    # its models into the memory separation is using.
+    with model_runtime(release_cache=True):
+        proc_folder(args)
 
     song_name = os.path.splitext(mix_basename)[0]
     song_out_dir = os.path.join(output_dir, song_name)
@@ -323,7 +338,7 @@ def run_svc(
     import types
     import torch
     from Remix.auger import echo_then_reverb_save
-    from my_inference import load_models_api, run_inference
+    from my_inference import run_cached_inference
 
     args = types.SimpleNamespace()
     args.source = source_vocal
@@ -342,8 +357,7 @@ def run_svc(
     args.output = "./outputs"
     os.makedirs(args.output, exist_ok=True)
 
-    model_bundle = load_models_api(args, device=args.cuda)
-    vc_path = run_inference(args, model_bundle, device=args.cuda)
+    vc_path = run_cached_inference(args, device=args.cuda)
 
     mixed_out = None
     if accompany_file:
@@ -747,4 +761,8 @@ def build_ui(lang: Optional[str] = None):
 
 if __name__ == "__main__":
     app = build_ui()
-    app.launch(server_port=30911, inbrowser=True, server_name='0.0.0.0')
+    # Local-only by default: the UI exposes arbitrary checkpoint paths and
+    # generated files, so it must not silently listen on the whole LAN.
+    # Advanced users can explicitly set YINGMUSIC_SERVER_NAME=0.0.0.0.
+    server_name = os.environ.get("YINGMUSIC_SERVER_NAME", "127.0.0.1")
+    app.launch(server_port=30911, inbrowser=True, server_name=server_name)

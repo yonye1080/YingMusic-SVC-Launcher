@@ -2,6 +2,7 @@
 __author__ = 'Roman Solovyev (ZFTurbo): https://github.com/ZFTurbo/'
 
 import time
+import gc
 import librosa
 import sys
 import os
@@ -142,23 +143,33 @@ def proc_folder(dict_args):
     model_load_start_time = time.time()
     torch.backends.cudnn.benchmark = True
 
-    model, config = get_model_from_config(args.model_type, args.config_path)
+    model = None
+    checkpoint = None
+    try:
+        model, config = get_model_from_config(args.model_type, args.config_path)
 
-    if args.start_check_point:
-        checkpoint = torch.load(args.start_check_point, weights_only=False, map_location='cpu')
-        load_start_checkpoint(args, model, checkpoint, type_='inference')
+        if args.start_check_point:
+            checkpoint = torch.load(args.start_check_point, weights_only=False, map_location='cpu')
+            load_start_checkpoint(args, model, checkpoint, type_='inference')
 
-    print("Instruments: {}".format(config.training.instruments))
+        print("Instruments: {}".format(config.training.instruments))
 
-    # in case multiple CUDA GPUs are used and --device_ids arg is passed
-    if isinstance(args.device_ids, list) and len(args.device_ids) > 1 and not args.force_cpu:
-        model = nn.DataParallel(model, device_ids=args.device_ids)
+        # in case multiple CUDA GPUs are used and --device_ids arg is passed
+        if isinstance(args.device_ids, list) and len(args.device_ids) > 1 and not args.force_cpu:
+            model = nn.DataParallel(model, device_ids=args.device_ids)
 
-    model = model.to(device)
+        model = model.to(device)
 
-    print("Model load time: {:.2f} sec".format(time.time() - model_load_start_time))
+        print("Model load time: {:.2f} sec".format(time.time() - model_load_start_time))
 
-    run_folder(model, args, config, device, verbose=True)
+        run_folder(model, args, config, device, verbose=True)
+    finally:
+        # Separation and SVC run sequentially in one-click mode. Do not keep
+        # BS-RoFormer on the GPU while the SVC models are being loaded.
+        del model, checkpoint
+        gc.collect()
+        if str(device).startswith("cuda") and torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
 
 if __name__ == "__main__":
