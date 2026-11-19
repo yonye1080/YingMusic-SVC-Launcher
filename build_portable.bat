@@ -99,8 +99,11 @@ REM build a .venv from scratch, setup_models.py is superseded by
 REM download_models.py, and build_portable.bat / build_installer.bat are
 REM build-time only. The only launchable file a user should ever see is
 REM start.bat (which is what the shortcuts point at).
+REM
+REM installer\ is build tooling too (.iss / .isl / icon scripts / assets) and
+REM has no runtime role, so it is dropped by /XD below.
 echo [3/6] Copying project code ...
-robocopy "%SRC%" "%DEST%" /E /MT:8 /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /XD "%SRC%\.venv" "%SRC%\.git" "%SRC%\.workbuddy" "%SRC%\outputs" "%SRC%\timbre_library" "%SRC%\checkpoints" "%SRC%\__pycache__" /XF "*.pyc" "*.log" ".gitignore" ".gitattributes" "*.original.py" "*.original.txt" "*.before_*.py" "*.before_*.bat" "*.md" "build_portable.bat" "build_installer.bat" "run_gradio.bat" "run_infer.bat" "run_separation.bat" "setup_windows.bat" "setup.sh" "setup_models.py" "my_infer.sh"
+robocopy "%SRC%" "%DEST%" /E /MT:8 /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /XD "%SRC%\.venv" "%SRC%\.git" "%SRC%\.workbuddy" "%SRC%\outputs" "%SRC%\timbre_library" "%SRC%\checkpoints" "%SRC%\__pycache__" "%SRC%\installer" /XF "*.pyc" "*.log" ".gitignore" ".gitattributes" "*.original.py" "*.original.txt" "*.before_*.py" "*.before_*.bat" "*.md" "build_portable.bat" "build_installer.bat" "run_gradio.bat" "run_infer.bat" "run_separation.bat" "setup_windows.bat" "setup.sh" "setup_models.py" "my_infer.sh"
 copy /y "%SRC%\README.md" "%DEST%\README.md" >nul
 if errorlevel 8 (
   echo [ERROR] Copy of project code failed.
@@ -138,6 +141,10 @@ echo [6/6] Writing start.bat ...
 >>"%DEST%\start.bat" echo set "HF_ENDPOINT=https://hf-mirror.com"
 >>"%DEST%\start.bat" echo set "HF_HOME=%%~dp0checkpoints"
 >>"%DEST%\start.bat" echo set "HF_HUB_CACHE=%%~dp0checkpoints\hf_cache"
+>>"%DEST%\start.bat" echo REM All runtime models ship inside this folder. Without OFFLINE the hub
+>>"%DEST%\start.bat" echo REM re-checks every repo over the network on each launch, which stalls the
+>>"%DEST%\start.bat" echo REM first conversion for minutes when huggingface.co is unreachable.
+>>"%DEST%\start.bat" echo if not defined HF_HUB_OFFLINE set "HF_HUB_OFFLINE=1"
 >>"%DEST%\start.bat" echo set "HF_HUB_DISABLE_TELEMETRY=1"
 >>"%DEST%\start.bat" echo set "PATH=%%~dp0bin;%%~dp0python;%%PATH%%"
 >>"%DEST%\start.bat" echo set "NUMBA_CACHE_DIR=%%LOCALAPPDATA%%\YingMusic-SVC-Launcher\numba_cache"

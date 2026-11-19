@@ -1,5 +1,13 @@
 import os
-os.environ["HF_HUB_CACHE"] = "./checkpoints/hf_cache"
+
+# Absolute, and never overrides an explicit value from the launcher: a plain
+# assignment of the relative "./checkpoints/hf_cache" used to clobber the
+# launcher's path and make every bundled model look missing when the working
+# directory was not the app folder.
+os.environ.setdefault(
+    "HF_HUB_CACHE",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "checkpoints", "hf_cache"),
+)
 
 import argparse
 import time

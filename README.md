@@ -109,6 +109,8 @@ python my_inference.py --source src.wav --target timbre.wav \
 
 首次安装由 `setup_*.bat/.sh` 自动调用 `download_models.py` 下载全部 6 类模型，**运行过程无需联网**。
 
+> 便携版 / 安装包的 `start.bat` 会设置 `HF_HUB_OFFLINE=1`：模型全部随包，没必要每次启动都去 huggingface 校验一遍（网络不通时每个仓库要重试 30–60 秒，第一次转换会被拖到十分钟）。确实要临时联网取模型，启动前 `set HF_HUB_OFFLINE=0` 即可。
+
 ### 下载源：国内 / 海外都可切换
 
 全链路（模型 + Python 依赖）支持两套源，按所在地区选择：

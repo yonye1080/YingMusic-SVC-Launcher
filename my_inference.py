@@ -128,7 +128,10 @@ def _load_models_uncached(args, device=torch.device("cuda")):
         whisper_feature_extractor = AutoFeatureExtractor.from_pretrained(whisper_name)
 
         def semantic_fn(waves_16k):
+            # sampling_rate is mandatory in practice: the extractor otherwise
+            # warns on every chunk and cannot normalise correctly.
             ori_inputs = whisper_feature_extractor([waves_16k.squeeze(0).cpu().numpy()],
+                                                   sampling_rate=16000,
                                                    return_tensors="pt",
                                                    return_attention_mask=True)
             ori_input_features = whisper_model._mask_input_features(
@@ -233,8 +236,10 @@ def run_inference(args, model_bundle, device=torch.device("cuda")):
     model, semantic_fn, f0_fn, vocoder_fn, campplus_model, mel_fn, mel_fn_args = model_bundle
     fp16 = args.fp16
     sr = mel_fn_args['sampling_rate']
-    f0_condition = args.f0_condition
-    forch_pitch_shift = args.semi_tone_shift
+    # Defaults mirror the CLI/UI values so a hand-built SimpleNamespace from an
+    # external script does not blow up with AttributeError.
+    f0_condition = getattr(args, 'f0_condition', True)
+    forch_pitch_shift = getattr(args, 'semi_tone_shift', None)
     # Only assigned when f0_condition is on; keep it defined so the output file
     # name below never raises NameError on the non-f0 path.
     pitch_shift = None
@@ -244,14 +249,21 @@ def run_inference(args, model_bundle, device=torch.device("cuda")):
     target_name = args.target
     print(source, target_name)
     diffusion_steps = args.diffusion_steps
-    length_adjust = args.length_adjust
-    inference_cfg_rate = args.inference_cfg_rate
-    exp_path = os.path.join(args.output , args.expname)
+    length_adjust = getattr(args, 'length_adjust', 1.0)
+    inference_cfg_rate = getattr(args, 'inference_cfg_rate', 0.7)
+    exp_path = os.path.join(args.output, args.expname)
+    # Decided BEFORE loading: the non-f0 variant works at 22.05 kHz, the
+    # f0-conditioned one at 44.1 kHz. The old order decoded at the config rate
+    # and then switched sr, so a 44.1k file was treated as 22.05k downstream
+    # (double speed, octave up).
+    sr = 22050 if not f0_condition else 44100
+    if abs(sr - mel_fn_args["sampling_rate"]) > 1:
+        print(f"WARNING: config expects {mel_fn_args['sampling_rate']} Hz but "
+              f"f0_condition={f0_condition} implies {sr} Hz — mel and audio "
+              f"rates disagree; check the checkpoint/config pair.")
     source_audio = librosa.load(source, sr=sr)[0]
     ref_audio = librosa.load(target_name, sr=sr)[0]
 
-
-    sr = 22050 if not f0_condition else 44100
     hop_length = 256 if not f0_condition else 512
     max_context_window = sr // hop_length * 30
     overlap_frame_len = 16
@@ -438,7 +450,7 @@ if __name__ == "__main__":
     args.f0_condition = True
     args.semi_tone_shift = None    # If None, the tone is automatically sandhi
 
-    args.output = './outputs'
+    args.output = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'outputs')
     os.makedirs(args.output, exist_ok=True)
 
     vc = run_cached_inference(args, device=args.cuda)

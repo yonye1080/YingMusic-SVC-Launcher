@@ -6,6 +6,8 @@ import json
 import hashlib
 import time
 import uuid
+import functools
+import traceback
 from typing import Optional, Tuple
 import gradio as gr
 
@@ -20,6 +22,16 @@ if _APP_DIR not in sys.path:
 # Results live next to the app, not next to whatever directory the process was
 # started from, so a shortcut launch and a shell launch behave the same.
 OUTPUT_DIR = os.path.join(_APP_DIR, "outputs")
+# Same reasoning for every bundled asset: a shortcut can start the app with an
+# arbitrary working directory, and relative paths then silently resolve to "".
+PROMPTS_DIR = os.path.join(_APP_DIR, "prompts")
+TIMBRE_DIR = os.path.join(_APP_DIR, "timbre_library")
+FIGS_DIR = os.path.join(_APP_DIR, "figs")
+CONFIG_DIR = os.path.join(_APP_DIR, "configs")
+CKPT_DIR = os.path.join(_APP_DIR, "checkpoints")
+EXAMPLE_MIX = os.path.join(
+    _APP_DIR, "accom_separation", "samples", "raw", "All I Want For Christmas Is You01.MP3"
+)
 
 from runtime_state import model_runtime
 
@@ -123,6 +135,13 @@ _TEXT = {
     "err_no_timbre": ("请先上传参考音色。", "Please upload the reference timbre."),
     "err_not_found": ("{name} 不存在：{path}", "{name} not found: {path}"),
     "err_no_stems": ("没有找到分离结果，请检查分离配置和权重路径。", "No stems found. Please check separation config and checkpoint."),
+    "err_oom": (
+        "显存不足。请降低 Diffusion Steps（如 30）、保持 FP16 勾选，"
+        "或改用「先分轨、再独立转换」的两步流程——分离和转换不会同时占用显存。",
+        "Out of GPU memory. Lower Diffusion Steps (e.g. 30) or use the two-step "
+        "workflow (separate, then convert) — separation and conversion never "
+        "hold the GPU at the same time.",
+    ),
     "name_input_audio": ("输入音频", "Input audio"),
     "name_sep_config": ("分离配置", "Separation config"),
     "name_sep_ckpt": ("分离权重", "Separation checkpoint"),
@@ -173,7 +192,6 @@ def tr(key: str, lang: Optional[str] = None) -> str:
 
 # ---------------- Utilities ----------------
 AUDIO_EXTS = (".wav", ".mp3", ".flac", ".ogg", ".m4a")
-TIMBRE_DIR = os.path.join("timbre_library")
 TIMBRE_STATE = os.path.join(TIMBRE_DIR, "last.json")
 
 
@@ -182,10 +200,35 @@ def _ensure_file_exists(path: str, name: str):
         raise gr.Error(tr("err_not_found").format(name=name, path=path))
 
 
+def _friendly_gpu_errors(fn):
+    """Show an actionable message instead of a CUDA traceback on OOM.
+
+    torch.cuda.OutOfMemoryError subclasses RuntimeError; matching on the text
+    keeps this file free of a top-level torch import (the UI must start even
+    before torch is needed).
+    """
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except RuntimeError as exc:
+            if "out of memory" not in str(exc).lower():
+                raise
+            traceback.print_exc()
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
+            raise gr.Error(tr("err_oom")) from None
+    return wrapper
+
+
 def _timbre_library_choices():
     """Reusable reference audios: personal library first, then bundled prompts."""
     items, seen = [], set()
-    for folder in (TIMBRE_DIR, "prompts"):
+    for folder in (TIMBRE_DIR, PROMPTS_DIR):
         if not os.path.isdir(folder):
             continue
         for fname in sorted(os.listdir(folder)):
@@ -216,7 +259,7 @@ def _remember_timbre(path: str):
         return
     os.makedirs(TIMBRE_DIR, exist_ok=True)
     abs_path = os.path.abspath(path)
-    persistent_roots = [os.path.abspath(TIMBRE_DIR), os.path.abspath("prompts")]
+    persistent_roots = [os.path.abspath(TIMBRE_DIR), os.path.abspath(PROMPTS_DIR)]
     if os.path.dirname(abs_path) in persistent_roots:
         saved = abs_path
     else:
@@ -232,13 +275,13 @@ def _remember_timbre(path: str):
 
 
 def _maybe_default_bs_roformer_paths() -> Tuple[str, str]:
-    cfg = os.path.join("accom_separation", "ckpt", "bs_roformer", "config_bd_roformer.yaml")
-    ckpt = os.path.join("accom_separation", "ckpt", "bs_roformer", "bs_roformer.ckpt")
+    cfg = os.path.join(_APP_DIR, "accom_separation", "ckpt", "bs_roformer", "config_bd_roformer.yaml")
+    ckpt = os.path.join(_APP_DIR, "accom_separation", "ckpt", "bs_roformer", "bs_roformer.ckpt")
     return (cfg if os.path.isfile(cfg) else "", ckpt if os.path.isfile(ckpt) else "")
 
 
 def _default_svc_cfg() -> str:
-    candidate = os.path.join("configs", "YingMusic-SVC.yml")
+    candidate = os.path.join(CONFIG_DIR, "YingMusic-SVC.yml")
     return candidate if os.path.isfile(candidate) else ""
 
 
@@ -273,6 +316,7 @@ def _cleanup_legacy_temp(max_age_sec: int = 3 * 24 * 3600) -> None:
 
 
 # ---------------- Separation ----------------
+@_friendly_gpu_errors
 def run_separation(
     mix_file: str,
     sep_config_path: str,
@@ -321,6 +365,10 @@ def run_separation(
     # same lock while BS-RoFormer runs, so a parallel convert click cannot load
     # its models into the memory separation is using.
     try:
+        # A re-run of the same song must not inherit stems from a previous
+        # attempt (a failed run would otherwise leave truncated/old files that
+        # look like valid results).
+        shutil.rmtree(song_out_dir, ignore_errors=True)
         with model_runtime(release_cache=True):
             proc_folder(args)
     finally:
@@ -336,6 +384,7 @@ def run_separation(
 
 
 # ---------------- SVC ----------------
+@_friendly_gpu_errors
 def run_svc(
     source_vocal: str,
     target_timbre: str,
@@ -415,6 +464,7 @@ def run_svc(
 
 
 # ---------------- One-click Pipeline ----------------
+@_friendly_gpu_errors
 def run_pipeline(
     mix_file: str,
     target_timbre: str,
@@ -457,15 +507,15 @@ def build_ui(lang: Optional[str] = None):
 
     default_sep_cfg, default_sep_ckpt = _maybe_default_bs_roformer_paths()
     default_svc_cfg = _default_svc_cfg()
-    default_svc_ckpt = os.path.join("checkpoints", "YingMusic-SVC-full.pt")
+    default_svc_ckpt = os.path.join(CKPT_DIR, "YingMusic-SVC-full.pt")
     if not os.path.isfile(default_svc_ckpt):
         default_svc_ckpt = ""
-    header_img = os.path.join("figs", "svc_main.jpg")
+    header_img = os.path.join(FIGS_DIR, "svc_main.jpg")
     has_header_img = os.path.isfile(header_img)
 
     # discover sample timbres
-    prompt_dir = "prompts"
-    audio_exts = (".wav", ".mp3", ".flac", ".ogg", ".m4a")
+    prompt_dir = PROMPTS_DIR
+    audio_exts = AUDIO_EXTS
     sample_timbres = []
     if os.path.isdir(prompt_dir):
         for fname in sorted(os.listdir(prompt_dir)):
@@ -569,7 +619,7 @@ def build_ui(lang: Optional[str] = None):
                         label="accompanied_audio",
                     )
                     # example if available
-                    example_path = os.path.join("accom_separation", "samples", "raw", "All I Want For Christmas Is You01.MP3")
+                    example_path = EXAMPLE_MIX
                     if os.path.isfile(example_path):
                         gr.Examples(
                             examples=[[example_path]],
@@ -695,7 +745,7 @@ def build_ui(lang: Optional[str] = None):
                         label="timbre_lib", info="timbre_lib_info",
                     )
                     # example if available
-                    example_path2 = os.path.join("accom_separation", "samples", "raw", "All I Want For Christmas Is You01.MP3")
+                    example_path2 = EXAMPLE_MIX
                     if os.path.isfile(example_path2):
                         gr.Examples(
                             examples=[[example_path2]],
@@ -798,4 +848,12 @@ if __name__ == "__main__":
     # generated files, so it must not silently listen on the whole LAN.
     # Advanced users can explicitly set YINGMUSIC_SERVER_NAME=0.0.0.0.
     server_name = os.environ.get("YINGMUSIC_SERVER_NAME", "127.0.0.1")
-    app.launch(server_port=30911, inbrowser=True, server_name=server_name)
+    # Generated files, imported timbres and bundled prompts live outside the
+    # Gradio temp dir; without this the download links 403 when the process was
+    # started from a different working directory.
+    app.launch(
+        server_port=30911,
+        inbrowser=True,
+        server_name=server_name,
+        allowed_paths=[OUTPUT_DIR, TIMBRE_DIR, PROMPTS_DIR],
+    )
