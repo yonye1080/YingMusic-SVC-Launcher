@@ -130,6 +130,13 @@ if not exist "%TL%\libomp140.x86_64.dll" if exist "%TL%\libiomp5md.dll" (
   copy /y "%TL%\libiomp5md.dll" "%TL%\libomp140.x86_64.dll" >nul
   echo   OpenMP shim created
 )
+REM Rebuilds are incremental: robocopy /E never deletes, so anything excluded
+REM above still lingers in DEST from an older build. Clear it explicitly, and
+REM reset the user-data folders so no test results / timbres ship by accident.
+if exist "%DEST%\installer" rd /s /q "%DEST%\installer"
+if exist "%DEST%\_setup" rd /s /q "%DEST%\_setup"
+if exist "%DEST%\outputs" rd /s /q "%DEST%\outputs"
+if exist "%DEST%\timbre_library" rd /s /q "%DEST%\timbre_library"
 if not exist "%DEST%\timbre_library" mkdir "%DEST%\timbre_library"
 if not exist "%DEST%\outputs" mkdir "%DEST%\outputs"
 
