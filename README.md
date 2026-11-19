@@ -187,8 +187,8 @@ installer\build_installer.bat <载荷目录> <输出目录>
 - **图标**：`installer/assets/icon-source.png` 是唯一的源图；`installer/make_icon.py` 会抠掉白底、居中裁方，再压成 16–256 px 的 7 个尺寸，产出 `installer/assets/app.ico`。换图标只替换源图后重跑该脚本即可。
 - **中文界面**：`installer/ChineseSimplified.isl` 是社区维护的 Inno Setup 简体中文翻译（基于 6.5.0+，UTF-8 带 BOM），因为 Inno Setup 官方只随附少数语种。安装向导会先弹语言选择，简体中文为默认。
 - **装到哪**：`PrivilegesRequired=lowest` + `DefaultDirName={autopf}` ⇒ 影子目录 `%LocalAppData%\Programs\YingMusic-SVC-Launcher`，全程无需管理员权限。这样做是因为程序要往自己目录里写 `outputs\`、`timbre_library\`、`ui_lang.json`，装在 `Program Files` 下普通用户会写失败。
-- **产物是分卷的**：载荷约 8.4 GiB，超过单文件 2 GB 上限，因此开启 `DiskSpanning`，产出 `Setup.exe` + `Setup-1/2/3.bin`（合计 5.38 GB / 5.01 GiB）。**分发时必须整组一起拷**，缺一片就装不完。
-- **体积裁剪**：`build_portable.bat` 会删掉 `torch/lib/*.lib`（762 MiB 静态导入库）和 `torch/include`（27 MiB 头文件 / 8,573 个文件）——两者只在编译 C++ 扩展时用，推理不需要。装完 8.19 GiB / 34,080 个文件；因为这两块本身压缩率极高，下载量只少约 90 MiB，省的主要是磁盘。
+- **产物是分卷的**：载荷约 8.4 GiB，超过单文件 2 GB 上限，因此开启 `DiskSpanning`，产出 `Setup.exe` + `Setup-1/2/3.bin`（v1.0.0 合计 5.34 GB / 4.98 GiB）。**分发时必须整组一起下载并放在同一目录**，缺一片就装不完。
+- **体积裁剪**：`build_portable.bat` 会删掉 `torch/lib/*.lib`（762 MiB 静态导入库）和 `torch/include`（27 MiB 头文件 / 8,573 个文件）——两者只在编译 C++ 扩展时用，推理不需要。v1.0.0 实测装完约 8.15 GiB / 34,066 个文件；因为这两块本身压缩率极高，下载量只少约 90 MiB，省的主要是磁盘。
 - **包里只有 `start.bat` 一个入口**：`run_gradio.bat` / `run_infer.bat` / `run_separation.bat` 都指向 `.venv\Scripts\python.exe`，而便携包与安装包里没有 `.venv`（跑的是内置 `python\`），双击只会闪退；`setup_windows.bat` / `setup.sh` / `setup_models.py` 是源码安装链路，`my_infer.sh` 是 Linux 模板，`build_*.bat` 是构建期脚本，这些在打包时一并排除。源码安装照旧使用它们。
 - **卸载**：询问「是否删除 outputs / timbre_library」这一步放在 `usUninstall` 而不是 `usPostUninstall`（`[UninstallDelete]` 早于后者执行，会导致装完跑过应用再卸载时留下一个空目录）；`start.bat` 的 numba 缓存写在 `%LocalAppData%\YingMusic-SVC-Launcher`，也在卸载时一并清掉。
 - 安装包未做代码签名，用户首次运行会看到 SmartScreen「未知发布者」提示，选「更多信息 → 仍要运行」即可。
