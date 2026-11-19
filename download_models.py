@@ -65,13 +65,41 @@ def check_direct(m):
 
 
 def download_direct(m, mirror, timeout=60):
-    import requests  # huggingface-hub 的依赖，安装依赖后必已存在
-
-    url = m["url"][mirror]
     dest = ROOT / m["path"]
     dest.parent.mkdir(parents=True, exist_ok=True)
     part = dest.with_name(dest.name + ".part")
+    expected = m["bytes"]
 
+    if part.exists() and part.stat().st_size > expected:
+        print("  .part 比预期体积更大，已丢弃重下")
+        part.unlink()
+
+    if part.exists() and part.stat().st_size == expected:
+        # A previous run finished the transfer but died before the checksum, so
+        # the .part is complete. Re-requesting it with Range would return 416
+        # and strand the download forever; verify it instead.
+        print("  发现完整的 .part（上次中断在校验前），直接校验")
+    else:
+        if not _download_to_part(m, mirror, part, timeout):
+            return False
+
+    if part.stat().st_size != expected:
+        print(f"  大小不符（{part.stat().st_size} != {expected}），保留 .part 可重试续传")
+        return False
+    if sha256_of(part) != m["sha256"]:
+        print("  SHA256 不符，已删除损坏文件")
+        part.unlink()
+        return False
+    part.replace(dest)
+    print(f"  完成 -> {m['path']}（sha256 校验通过）")
+    return True
+
+
+def _download_to_part(m, mirror, part, timeout=60):
+    """Stream into .part with resume support. Returns True when the transfer ends."""
+    import requests  # huggingface-hub 的依赖，安装依赖后必已存在
+
+    url = m["url"][mirror]
     headers, mode, resume = {}, "wb", 0
     if part.exists() and part.stat().st_size > 0:
         resume = part.stat().st_size
@@ -83,6 +111,12 @@ def download_direct(m, mirror, timeout=60):
     try:
         with requests.get(url, stream=True, headers=headers,
                           timeout=timeout, allow_redirects=True) as r:
+            if resume and r.status_code == 416:
+                # 远端和 .part 大小对不上，续传无解：丢掉 .part 完整重下一次。
+                r.close()
+                part.unlink(missing_ok=True)
+                print("  续传被拒（416），改为完整下载")
+                return _download_to_part(m, mirror, part, timeout)
             if resume and r.status_code == 200:  # 服务器忽略 Range，重新下
                 mode, resume = "wb", 0
             r.raise_for_status()
@@ -98,6 +132,7 @@ def download_direct(m, mirror, timeout=60):
                         print(f"\r  {human(done)}/{human(total)} ({pct}%) "
                               f"{human(int(speed))}/s", end="", flush=True)
         print()
+        return True
     except Exception as e:  # noqa: BLE001
         print(f"\n  下载失败：{type(e).__name__}: {e}")
         print(f"  可手动下载后放入 {m['path']}")
@@ -105,17 +140,6 @@ def download_direct(m, mirror, timeout=60):
             print(f"  页面：{m['manual']}")
         print(f"  可换源重试：--mirror {'official' if mirror == 'cn' else 'cn'}")
         return False
-
-    if part.stat().st_size != m["bytes"]:
-        print(f"  大小不符（{part.stat().st_size} != {m['bytes']}），保留 .part 可重试续传")
-        return False
-    if sha256_of(part) != m["sha256"]:
-        print("  SHA256 不符，已删除损坏文件")
-        part.unlink()
-        return False
-    part.replace(dest)
-    print(f"  完成 -> {m['path']}（sha256 校验通过）")
-    return True
 
 
 # ---------------------------------------------------------------- 运行时模型（HF 缓存）
@@ -183,7 +207,13 @@ def main():
     args = ap.parse_args()
 
     models = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["models"]
-    if args.only:
+    known_ids = [m["id"] for m in models]
+    if args.only is not None:
+        if not args.only:
+            ap.error("--only 至少需要一个模型 id")
+        unknown = [i for i in args.only if i not in known_ids]
+        if unknown:
+            ap.error("未知模型 id: " + ", ".join(unknown) + "\n可用 id: " + ", ".join(known_ids))
         wanted = set(args.only)
         models = [m for m in models if m["id"] in wanted]
 

@@ -4,6 +4,8 @@ import shutil
 import tempfile
 import json
 import hashlib
+import time
+import uuid
 from typing import Optional, Tuple
 import gradio as gr
 
@@ -14,6 +16,10 @@ import gradio as gr
 _APP_DIR = os.path.dirname(os.path.abspath(__file__))
 if _APP_DIR not in sys.path:
     sys.path.insert(0, _APP_DIR)
+
+# Results live next to the app, not next to whatever directory the process was
+# started from, so a shortcut launch and a shell launch behave the same.
+OUTPUT_DIR = os.path.join(_APP_DIR, "outputs")
 
 from runtime_state import model_runtime
 
@@ -247,6 +253,25 @@ def _locate_stem(out_dir: str, name_candidates: Tuple[str, ...]) -> Optional[str
     return None
 
 
+def _cleanup_legacy_temp(max_age_sec: int = 3 * 24 * 3600) -> None:
+    """Remove ams_in_/ams_out_ leftovers from versions that leaked temp dirs."""
+    temp_root = tempfile.gettempdir()
+    now = time.time()
+    try:
+        entries = os.listdir(temp_root)
+    except OSError:
+        return
+    for name in entries:
+        if not name.startswith(("ams_in_", "ams_out_")):
+            continue
+        path = os.path.join(temp_root, name)
+        try:
+            if os.path.isdir(path) and now - os.path.getmtime(path) > max_age_sec:
+                shutil.rmtree(path, ignore_errors=True)
+        except OSError:
+            pass
+
+
 # ---------------- Separation ----------------
 def run_separation(
     mix_file: str,
@@ -264,10 +289,17 @@ def run_separation(
     _ensure_file_exists(sep_checkpoint_path, tr("name_sep_ckpt"))
 
     input_dir = tempfile.mkdtemp(prefix="ams_in_")
-    output_dir = tempfile.mkdtemp(prefix="ams_out_")
     mix_basename = os.path.basename(mix_file)
     mix_copy_path = os.path.join(input_dir, mix_basename)
     shutil.copy2(mix_file, mix_copy_path)
+
+    # Stems go to the app's own outputs folder instead of a temp directory that
+    # was never deleted: every separation used to leave ~100 MB behind in %TEMP%.
+    # proc_folder writes <store_dir>/<song name>/, so pass the shared root and
+    # keep the result at outputs\separated\<song>\vocals.wav.
+    song_name = os.path.splitext(mix_basename)[0]
+    output_dir = os.path.join(OUTPUT_DIR, "separated")
+    song_out_dir = os.path.join(output_dir, song_name)
 
     from accom_separation.inference import proc_folder
 
@@ -288,11 +320,11 @@ def run_separation(
     # Separation needs the whole GPU: evict the cached SVC bundle and hold the
     # same lock while BS-RoFormer runs, so a parallel convert click cannot load
     # its models into the memory separation is using.
-    with model_runtime(release_cache=True):
-        proc_folder(args)
-
-    song_name = os.path.splitext(mix_basename)[0]
-    song_out_dir = os.path.join(output_dir, song_name)
+    try:
+        with model_runtime(release_cache=True):
+            proc_folder(args)
+    finally:
+        shutil.rmtree(input_dir, ignore_errors=True)
 
     lead = _locate_stem(song_out_dir, ("vocals", "lead", "leading_vocals"))
     backing = _locate_stem(song_out_dir, ("backing_vocal", "backing", "back_vocals", "background"))
@@ -354,7 +386,7 @@ def run_svc(
     args.inference_cfg_rate = 0.7
     args.f0_condition = True
     args.semi_tone_shift = None
-    args.output = "./outputs"
+    args.output = OUTPUT_DIR
     os.makedirs(args.output, exist_ok=True)
 
     vc_path = run_cached_inference(args, device=args.cuda)
@@ -760,6 +792,7 @@ def build_ui(lang: Optional[str] = None):
 
 
 if __name__ == "__main__":
+    _cleanup_legacy_temp()
     app = build_ui()
     # Local-only by default: the UI exposes arbitrary checkpoint paths and
     # generated files, so it must not silently listen on the whole LAN.

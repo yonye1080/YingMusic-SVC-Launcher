@@ -9,6 +9,7 @@ os.environ.setdefault(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), 'checkpoints', 'hf_cache'),
 )
 import shutil
+import uuid
 import warnings
 import argparse
 import torch
@@ -234,6 +235,9 @@ def run_inference(args, model_bundle, device=torch.device("cuda")):
     sr = mel_fn_args['sampling_rate']
     f0_condition = args.f0_condition
     forch_pitch_shift = args.semi_tone_shift
+    # Only assigned when f0_condition is on; keep it defined so the output file
+    # name below never raises NameError on the non-f0 path.
+    pitch_shift = None
 
     source = args.source
 
@@ -394,11 +398,14 @@ def run_inference(args, model_bundle, device=torch.device("cuda")):
     print(f"RTF: {(time_vc_end - time_vc_start) / vc_wave.size(-1) * sr}")
     os.makedirs(exp_path, exist_ok=True)
     src_name = os.path.basename(source).split(".")[0]
-    tgt_name = os.path.basename(target_name).split(".")[0]
-    if hasattr(args, "uuid"):
-        vc_name = f'{src_name}_{tgt_name}_' + args.uuid + '.wav'
+    tgt_name = os.path.basename(str(target_name)).split(".")[0]
+    if getattr(args, "uuid", None):
+        vc_name = f'{src_name}_{tgt_name}_' + str(args.uuid) + '.wav'
     else:
-        vc_name = f"{tgt_name}_{src_name}_{pitch_shift}.wav"
+        # A token keeps repeated runs of the same pair from overwriting each
+        # other, so the previous result stays downloadable in the browser.
+        shift_tag = "auto" if pitch_shift is None else f"{float(pitch_shift):g}"
+        vc_name = f"{tgt_name}_{src_name}_{shift_tag}_{uuid.uuid4().hex[:6]}.wav"
     output_path = os.path.join(exp_path, vc_name)
     torchaudio.save(output_path, vc_wave.cpu(), sr)
     return output_path
@@ -436,10 +443,12 @@ if __name__ == "__main__":
 
     vc = run_cached_inference(args, device=args.cuda)
     if args.accompany:
-        vc_t = vc.split('/')
-        a,b = '/'.join(vc_t[:-1]), vc_t[-1]
-        os.makedirs(a + '/accompany', exist_ok=True)
-        op = a + '/accompany/'+b
+        # os.path, not str.split('/'): on Windows "outputs\gradio\x.wav" has no
+        # '/' and used to land in the drive root as "/accompany".
+        out_dir = os.path.dirname(os.path.abspath(vc))
+        acc_dir = os.path.join(out_dir, 'accompany')
+        os.makedirs(acc_dir, exist_ok=True)
+        op = os.path.join(acc_dir, os.path.basename(vc))
         echo_then_reverb_save(
             vc, op, args.accompany,
             vocal_offset_sec=args.vocal_offset,

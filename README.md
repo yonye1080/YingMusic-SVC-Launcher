@@ -101,7 +101,7 @@ python my_inference.py --source src.wav --target timbre.wav \
 - **8GB 显存**：保持 FP16 勾选、Diffusion Steps 默认 100；一键模式显存不足时改「先分轨、再独立 SVC」两步走。
 - **zero-shot 无音色注册**：每次推理都会用参考音频参与语义/音色/F0 计算，音色库只省去「重复上传」，省不掉计算。
 - **一键模式**的伴奏来自自动分离、与干声天然对齐（内部固定偏移 0 / -3 dB）；只有「自带伴奏」才需调偏移。
-- **结果目录**：Web UI `outputs\gradio\`（混音在 `accompany\`）、命令行 `outputs\my_exp\`、批量分轨 `accom_separation\samples\raw-infer\`。
+- **结果目录**：Web UI 转换结果 `outputs\gradio\`（混音在 `accompany\`）、分轨结果 `outputs\separated\<歌名>\`、命令行 `outputs\my_exp\`、批量分轨 `accom_separation\samples\raw-infer\`。目录都在程序自己所在的位置，从快捷方式启动也一样。
 
 ---
 
