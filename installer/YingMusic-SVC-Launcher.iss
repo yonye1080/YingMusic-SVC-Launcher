@@ -54,7 +54,7 @@ OutputDir={#OutDir}
 OutputBaseFilename={#MyAppName}-{#MyAppVersion}-Setup
 Compression=lzma2/fast
 SolidCompression=no
-; The payload is ~9.4 GB, far beyond the 2 GB single-exe limit,
+; The payload is ~8.4 GiB, far beyond the 2 GB single-exe limit,
 ; so disk spanning is mandatory. Result: setup.exe + setup-N.bin slices.
 DiskSpanning=yes
 DiskSliceSize=2000000000
@@ -63,7 +63,7 @@ SetupIconFile=assets\app.ico
 UninstallDisplayName={#MyAppName} {#MyAppVersion}
 UninstallDisplayIcon={app}\app.ico
 AllowNoIcons=yes
-; Roughly 9.4 GB unpacked + room for generated audio
+; Roughly 8.2 GiB installed + room for generated audio
 ExtraDiskSpaceRequired=0
 
 [Languages]
@@ -98,15 +98,33 @@ Filename: "{app}\start.bat"; Description: "{cm:LaunchProgram,{#StringChange(MyAp
 
 [UninstallDelete]
 Type: files; Name: "{app}\ui_lang.json"
+; __pycache__/.pyc and numba caches are created at runtime and are not
+; tracked by the install log, so the Python tree has to go wholesale.
 Type: filesandordirs; Name: "{app}\python"
+; Insurance only: by the time this list is processed, {app} may still hold
+; unins000.exe/.dat, so the empty-folder case is actually handled by Inno's
+; own end-of-uninstall cleanup - see the note on usUninstall in [Code].
+Type: dirifempty; Name: "{app}"
+; start.bat points NUMBA_CACHE_DIR here (librosa/madmom JIT caches), which
+; lives outside {app} and is therefore unknown to the uninstall log.
+Type: filesandordirs; Name: "{localappdata}\{#MyAppName}"
 
 [Code]
-{ Ask before removing user-generated data on uninstall. }
+// Ask before removing user-generated data on uninstall.
+//
+// This runs on usUninstall (i.e. before the uninstaller starts deleting
+// files), NOT on usPostUninstall. Order matters: [UninstallDelete] entries
+// are processed before usPostUninstall, so deleting outputs\ there left an
+// empty install folder behind - Inno's own end-of-uninstall cleanup had
+// already run by then. Doing it first lets the normal cleanup finish the
+// job and take the now-empty folder with it. Verified with a minimal
+// payload: usPostUninstall => empty folder left; usUninstall => gone.
+// (Comment style must be // here: a brace comment cannot contain "{app}".)
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   OutDir, TimbreDir: String;
 begin
-  if CurUninstallStep = usPostUninstall then
+  if CurUninstallStep = usUninstall then
   begin
     OutDir := ExpandConstant('{app}\outputs');
     TimbreDir := ExpandConstant('{app}\timbre_library');
