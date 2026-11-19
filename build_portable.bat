@@ -90,8 +90,17 @@ REM Dev-only leftovers are excluded so the bundle looks like a product, not a
 REM working tree: VCS metadata, the *.original / *.before_* backup copies of
 REM gradio_app.py / my_inference.py / run_*.bat, and every *.md but README.md
 REM (that is how the Chinese handover note stays out while README still ships).
+REM
+REM Also excluded are the source-install entry points. In the bundle there is
+REM no .venv - the app runs on the embedded python\ - so run_gradio.bat /
+REM run_infer.bat / run_separation.bat all point at a python.exe that does not
+REM exist and die with a flash of the console. setup_windows.bat / setup.sh
+REM build a .venv from scratch, setup_models.py is superseded by
+REM download_models.py, and build_portable.bat / build_installer.bat are
+REM build-time only. The only launchable file a user should ever see is
+REM start.bat (which is what the shortcuts point at).
 echo [3/6] Copying project code ...
-robocopy "%SRC%" "%DEST%" /E /MT:8 /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /XD "%SRC%\.venv" "%SRC%\.git" "%SRC%\.workbuddy" "%SRC%\outputs" "%SRC%\timbre_library" "%SRC%\checkpoints" "%SRC%\__pycache__" /XF "*.pyc" "*.log" ".gitignore" ".gitattributes" "*.original.py" "*.original.txt" "*.before_*.py" "*.before_*.bat" "*.md"
+robocopy "%SRC%" "%DEST%" /E /MT:8 /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /XD "%SRC%\.venv" "%SRC%\.git" "%SRC%\.workbuddy" "%SRC%\outputs" "%SRC%\timbre_library" "%SRC%\checkpoints" "%SRC%\__pycache__" /XF "*.pyc" "*.log" ".gitignore" ".gitattributes" "*.original.py" "*.original.txt" "*.before_*.py" "*.before_*.bat" "*.md" "build_portable.bat" "build_installer.bat" "run_gradio.bat" "run_infer.bat" "run_separation.bat" "setup_windows.bat" "setup.sh" "setup_models.py" "my_infer.sh"
 copy /y "%SRC%\README.md" "%DEST%\README.md" >nul
 if errorlevel 8 (
   echo [ERROR] Copy of project code failed.
